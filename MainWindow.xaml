@@ -27,11 +27,8 @@
                 </MenuItem>
             </Menu>
         </StackPanel>
-
-        <MediaElement x:Name="mediaEL" 
-                      Grid.Row="1" Width="720" Height="360"
-                      Stretch="Fill"
-                      LoadedBehavior="Manual"/>
+        <Canvas x:Name="mediaEL" Grid.Row="1">
+        </Canvas>
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>

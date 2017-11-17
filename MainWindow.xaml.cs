@@ -3,18 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace ThesisApp
 {
@@ -23,12 +15,22 @@ namespace ThesisApp
     /// </summary>
     public partial class MainWindow : Window
     {
+
+        private MediaElement swapMediaPlayer = new MediaElement()
+        {
+            Width = 720,
+            Height = 360,
+            Stretch = Stretch.Fill,
+            LoadedBehavior = MediaState.Manual
+        };
+
         public MainWindow()
         {
             InitializeComponent();
             btnSwitch.IsEnabled = false;
             btnRun.IsEnabled = false;
             ToPlaying(false);
+            mediaEL.Children.Add(swapMediaPlayer);
         }
 
         private void ToPlaying(bool v)
@@ -38,49 +40,117 @@ namespace ThesisApp
             btnMoveForward.IsEnabled = v;
         }
 
-        bool mode1 = true;
+        bool mode1 = false;
+        
+        private CircularList<BitmapImage> RunImageList = null;
+
         private void SwitchMode()
         {
             mode1 = !mode1;
             if (mode1)
             {
-                btnPlay.IsEnabled = true;
-                btnMoveBackward.IsEnabled = true;
-                btnMoveForward.IsEnabled = true;
+                ToPlaying(true);
+                RunImageList = null;
+                mediaEL.Children.Clear();
+                mediaEL.Children.Add(swapMediaPlayer);
+                swapMediaPlayer.Play();
+                btnCapture.IsEnabled = true;
+                btnRun.IsEnabled = false;
+                numCapture = 0;
             }
             else
             {
-                btnPlay.IsEnabled = false;
-                btnMoveBackward.IsEnabled = false;
-                btnMoveForward.IsEnabled = false;
+                ToPlaying(false);
+                btnMoveBackward.IsEnabled = true;
+                btnMoveForward.IsEnabled = true;
+                btnCapture.IsEnabled = false;
+                btnRun.IsEnabled = false;
+
+                swapMediaPlayer.Stop();
+
+                numCapture = 0;
+                mediaEL.Children.Clear();
+
+                //nthoang: filerun.txt image loading when switching mode executed here
+                using (var fileStream = new StreamReader("filerun.txt"))
+                {
+                    var curDir = Directory.GetCurrentDirectory();
+                    var imglist = new List<BitmapImage>();
+                    while (true)
+                    {
+                        var runImgPath = fileStream.ReadLine();
+
+                        if (runImgPath == null) break;
+
+                        BitmapImage bitmap = new BitmapImage();
+                        bitmap.BeginInit();
+                        bitmap.UriSource = new Uri(runImgPath);
+                        bitmap.EndInit();
+
+                        imglist.Add(bitmap);
+                    }
+                    RunImageList = new CircularList<BitmapImage>(imglist.Count);
+                    imglist.ForEach((runimg) =>
+                    {
+                        RunImageList.Value = runimg;
+                        RunImageList.Next();
+                    });
+                }
+                RunImageList.Reset();
+                RunImageList.Next();
+                mediaEL.Children.Add(new Image()
+                {
+                    Source = RunImageList.Value,
+                });
             }
-        }
-
-        private void Mediaplayer_OpenMedia(object sender, EventArgs e)
-        {
-
         }
 
         private void btnPlay_Click(object sender, RoutedEventArgs e)
         {
-            ToPlaying(true);
-            mediaEL.Play();
-            
+            if (mode1)
+            {
+                ToPlaying(true);
+                swapMediaPlayer.Play();
+            }
         }
         
         private void btnMoveBackward_Click(object sender, RoutedEventArgs e)
         {
-            mediaEL.Position -= TimeSpan.FromSeconds(1);
+            if (mode1)
+            {
+                swapMediaPlayer.Position -= TimeSpan.FromSeconds(1);
+            }
+            else
+            {
+                mediaEL.Children.Clear();
+                RunImageList.Previous();
+                mediaEL.Children.Add(new Image()
+                {
+                    Source = RunImageList.Value,
+                });
+            }
         }
 
         private void btnMoveForward_Click(object sender, RoutedEventArgs e)
         {
-            mediaEL.Position += TimeSpan.FromSeconds(1);
+            if (mode1)
+            {
+                swapMediaPlayer.Position += TimeSpan.FromSeconds(1);
+            }
+            else
+            {
+                mediaEL.Children.Clear();
+                RunImageList.Next();
+                mediaEL.Children.Add(new Image()
+                {
+                    Source = RunImageList.Value,
+                });
+            }
         }
 
         private void btnSwitch_Click(object sender, RoutedEventArgs e)
         {
-            
+            SwitchMode();
         }
 
         private void btnRun_Click(object sender, RoutedEventArgs e)
@@ -95,30 +165,36 @@ namespace ThesisApp
                 }
             }
 
-            // For the example
-            //const string ex1 = "C:\\";
-            //const string ex2 = "C:\\Dir";
 
             // Use ProcessStartInfo class
-            //ProcessStartInfo startInfo = new ProcessStartInfo();
-            //startInfo.CreateNoWindow = false;
-            //startInfo.UseShellExecute = false;
-            
+            ProcessStartInfo startInfo = new ProcessStartInfo();
+            startInfo.CreateNoWindow = false;
+            startInfo.UseShellExecute = false;
+
+            //startInfo.UseShellExecute = true;
+            startInfo.RedirectStandardOutput = false;
+
             // nthoang: openCV exe app open here
-            //startInfo.FileName = "dcm2jpg.exe";
-            //startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+            startInfo.FileName = 
+                @"D:\NTH\Study\Projects\Thesis\DummyConsoleApp\DummyConsoleApp\bin\Debug\DummyConsoleApp.exe";
+            // nthoang: openCV working directory must be set here
+            startInfo.WorkingDirectory = 
+                @"D:\NTH\Study\Projects\Thesis\DummyConsoleApp\DummyConsoleApp\bin\Debug\";
+            startInfo.WindowStyle = ProcessWindowStyle.Hidden;
             
             // nthoang: Pass in arguments
-            //startInfo.Arguments = "-f j -o \"" + ex1 + "\" -z 1.0 -s y " + ex2;
+            //startInfo.Arguments = " - f j -o \"" + ex1 + "\" -z 1.0 -s y " + ex2;
 
             try
             {
                 // Start the process with the info we specified.
                 // Call WaitForExit and then the using statement will close.
-                //using (Process exeProcess = Process.Start(startInfo))
-                //{
-                //    exeProcess.WaitForExit();
-                //}
+                using (Process exeProcess = Process.Start(startInfo))
+                {
+                    exeProcess.WaitForExit();
+                }
+                btnRun.IsEnabled = false;
+                numCapture = 0;
             }
             catch
             {
@@ -126,14 +202,13 @@ namespace ThesisApp
             }
         }
 
-
         private int numCapture = 0; 
 
         private void btnCapture_Click(object sender, RoutedEventArgs e)
         {
             RenderTargetBitmap rtb = 
                 new RenderTargetBitmap(
-                    mediaEL.NaturalVideoWidth, mediaEL.NaturalVideoHeight, 
+                    swapMediaPlayer.NaturalVideoWidth, swapMediaPlayer.NaturalVideoHeight, 
                     96, 96, PixelFormats.Pbgra32);
 
             rtb.Render(mediaEL);
@@ -148,7 +223,7 @@ namespace ThesisApp
                 encoder.Frames.Add(BitmapFrame.Create((BitmapSource)img.Source));
                 encoder.Save(fileStream);
                 btnRun.IsEnabled = true;
-                btnSwitch.IsDefault = true;
+                btnSwitch.IsEnabled = true;
             }
         }
 
@@ -163,8 +238,10 @@ namespace ThesisApp
             ofd.Filter = "Video Files (*.wmv, *.mp3, *.mp4)|*.wmv; *.mp3; *.mp4";
             if (ofd.ShowDialog() == true)
             {
-                mediaEL.Source = new Uri(ofd.FileName);
-                if (!mode1) mode1 = true;
+                swapMediaPlayer.Source = new Uri(ofd.FileName);
+                if (!mode1) {
+                    SwitchMode();
+                }
             } 
 
         }
