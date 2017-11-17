@@ -164,7 +164,7 @@ namespace ThesisApp
             if (ofd.ShowDialog() == true)
             {
                 mediaEL.Source = new Uri(ofd.FileName);
-                btnPlay.IsEnabled = true;
+                if (!mode1) mode1 = true;
             } 
 
         }
